@@ -19,6 +19,7 @@ import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.support.actions.PauseAction;
+import org.jenkins.plugins.lockableresources.NoReleaseLockException;
 
 public class LockStepExecution extends AbstractStepExecutionImpl implements Serializable {
 
@@ -149,7 +150,7 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
     }
   }
 
-  private static final class Callback extends BodyExecutionCallback.TailCall {
+  private static final class Callback extends BodyExecutionCallback {
 
     private static final long serialVersionUID = -2024890670461847666L;
     private final List<String> resourceNames;
@@ -162,7 +163,6 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
       this.inversePrecedence = inversePrecedence;
     }
 
-    @Override
     protected void finished(StepContext context) throws Exception {
       LockableResourcesManager.get()
           .unlockNames(this.resourceNames, context.get(Run.class), this.inversePrecedence);
@@ -171,6 +171,36 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
           .getLogger()
           .println("Lock released on resource [" + resourceDescription + "]");
       LOGGER.finest("Lock released on [" + resourceDescription + "]");
+    }
+
+    @Override 
+    public final void onSuccess(StepContext context, Object result) {
+        try {
+            finished(context);
+        } catch (Exception x) {
+            context.onFailure(x);
+            return;
+        }
+
+        context.onSuccess(result);
+    }
+  
+    @Override
+    public final void onFailure(StepContext context, Throwable t) {
+        if (t.getClass().equals(NoReleaseLockException.class)) {
+            // In this case, we didn't really fail, but we aren't locking.
+            LockableResourcesManager.get().dontUnlockAtCompletion(resourceNames);
+            context.onSuccess(null);
+            return;
+        }
+
+        try {
+            finished(context);
+        } catch (Exception x) {
+            t.addSuppressed(x);
+        }
+
+        context.onFailure(t);
     }
   }
 

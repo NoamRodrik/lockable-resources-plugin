@@ -41,6 +41,7 @@ public class LockableResourcesManager extends GlobalConfiguration {
   @Deprecated private transient String priorityParameterName;
 
   private List<LockableResource> resources;
+  private List<String> keepLockedResourcesNames;
 
   /**
    * Only used when this lockable resource is tried to be locked by {@link LockStep}, otherwise
@@ -49,8 +50,18 @@ public class LockableResourcesManager extends GlobalConfiguration {
   private List<QueuedContextStruct> queuedContexts = new ArrayList<>();
 
   public LockableResourcesManager() {
+    keepLockedResourcesNames = new ArrayList<>();
     resources = new ArrayList<>();
     load();
+  }
+
+  public void dontUnlockAtCompletion(List<String> reservedResourcesNames)
+  {
+    keepLockedResourcesNames.addAll(reservedResourcesNames);
+  }
+
+  public List<String> getUnlockableResourcesNames() {
+    return keepLockedResourcesNames;
   }
 
   public List<LockableResource> getResources() {

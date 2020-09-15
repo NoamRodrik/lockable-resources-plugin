@@ -17,6 +17,7 @@ import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import hudson.model.StringParameterValue;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -89,11 +90,24 @@ public class LockRunListener extends RunListener<Run<?, ?>> {
 		List<LockableResource> required = LockableResourcesManager.get()
 				.getResourcesFromBuild(build);
 		if (!required.isEmpty()) {
-			LockableResourcesManager.get().unlock(required, build);
-			listener.getLogger().printf("%s released lock on %s%n",
-					LOG_PREFIX, required);
-			LOGGER.fine(build.getFullDisplayName() + " released lock on "
-					+ required);
+                        List<LockableResource> updatedRequired = new ArrayList<>();
+                        updatedRequired.addAll(required);
+                        if (!LockableResourcesManager.get().getUnlockableResourcesNames().isEmpty()) {
+                          for (LockableResource current : required) {
+                            if (LockableResourcesManager.get().getUnlockableResourcesNames().contains(current.getName())) {
+                                updatedRequired.remove(current);
+                                LockableResourcesManager.get().getUnlockableResourcesNames().remove(current.getName());
+                            }
+                          }
+                        }
+
+                        if (!updatedRequired.isEmpty()) {
+			  LockableResourcesManager.get().unlock(updatedRequired, build);
+			  listener.getLogger().printf("%s released lock on %s%n",
+	  		  		  LOG_PREFIX, updatedRequired);
+	  	  	  LOGGER.fine(build.getFullDisplayName() + " released lock on "
+					  + updatedRequired);
+                        }
 		}
 
 	}
