@@ -69,7 +69,9 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
                 getContext(),
                 step.toString(),
                 step.variable,
-                step.inversePrecedence)) {
+                step.inversePrecedence,
+                step.unlockOnException,
+                step.keepLockExceptionFails)) {
       // if the resource is known, we could output the active/blocking job/build
       LockableResource resource = LockableResourcesManager.get().fromName(step.resource);
       boolean buildNameKnown = resource != null && resource.getBuildName() != null;
@@ -100,7 +102,9 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
       StepContext context,
       String resourceDescription,
       final String variable,
-      boolean inversePrecedence) {
+      boolean inversePrecedence,
+      boolean unlockOnException,
+      boolean keepLockExceptionFails) {
     Run<?, ?> r = null;
     FlowNode node = null;
     try {
@@ -121,7 +125,7 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
       BodyInvoker bodyInvoker =
           context
               .newBodyInvoker()
-              .withCallback(new Callback(resourcenames, resourceDescription, inversePrecedence));
+              .withCallback(new Callback(resourcenames, resourceDescription, inversePrecedence, unlockOnException, keepLockExceptionFails));
       if (variable != null && variable.length() > 0) {
         // set the variable for the duration of the block
         bodyInvoker.withContext(
@@ -156,16 +160,20 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
     private final List<String> resourceNames;
     private final String resourceDescription;
     private final boolean inversePrecedence;
+    private final boolean unlockOnException;
+    private final boolean keepLockExceptionFails;
 
-    Callback(List<String> resourceNames, String resourceDescription, boolean inversePrecedence) {
+    Callback(List<String> resourceNames, String resourceDescription, boolean inversePrecedence, boolean unlockOnException, boolean keepLockExceptionFails) {
       this.resourceNames = resourceNames;
       this.resourceDescription = resourceDescription;
       this.inversePrecedence = inversePrecedence;
+      this.unlockOnException = unlockOnException;
+      this.keepLockExceptionFails = keepLockExceptionFails;
     }
 
     protected void finished(StepContext context) throws Exception {
       LockableResourcesManager.get()
-          .unlockNames(this.resourceNames, context.get(Run.class), this.inversePrecedence);
+          .unlockNames(this.resourceNames, context.get(Run.class), this.inversePrecedence, this.unlockOnException, this.keepLockExceptionFails);
       context
           .get(TaskListener.class)
           .getLogger()
@@ -190,12 +198,22 @@ public class LockStepExecution extends AbstractStepExecutionImpl implements Seri
         if (t.getClass().equals(NoReleaseLockException.class)) {
             // In this case, we didn't really fail, but we aren't locking.
             LockableResourcesManager.get().dontUnlockAtCompletion(resourceNames);
-            context.onSuccess(null);
+
+            if (this.keepLockExceptionFails) {
+                context.onFailure(t);
+            } else {
+                context.onSuccess(null);
+            }
+
             return;
         }
 
         try {
-            finished(context);
+            if (this.unlockOnException) {
+                finished(context);
+            } else {
+                LockableResourcesManager.get().dontUnlockAtCompletion(resourceNames);
+            }
         } catch (Exception x) {
             t.addSuppressed(x);
         }

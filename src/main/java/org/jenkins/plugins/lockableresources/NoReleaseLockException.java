@@ -1,7 +1,7 @@
 package org.jenkins.plugins.lockableresources;
 
 public class NoReleaseLockException extends Exception {
-    public NoReleaseLockException() {
-        super();
+    public NoReleaseLockException(String errorMessage) {
+        super(errorMessage);
     }
 }

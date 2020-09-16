@@ -16,6 +16,12 @@
 	<f:entry field="inversePrecedence">
 		<f:checkbox title="${%Inverse precedence}"/>
 	</f:entry>
+	<f:entry field="unlockOnException">
+		<f:checkbox title="${%Unlock resource on exception}"/>
+	</f:entry>
+	<f:entry field="keepLockExceptionFails">
+		<f:checkbox title="${%Throwing NoReleaseLockException will fail the pipeline}"/>
+	</f:entry>
 	<f:entry field="skipIfLocked">
 		<f:checkbox title="${%Skip queue}"/>
 	</f:entry>

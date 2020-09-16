@@ -36,6 +36,10 @@ public class LockStep extends Step implements Serializable {
 
   public boolean skipIfLocked = false;
 
+  public boolean unlockOnException = true;
+
+  public boolean keepLockExceptionFails = true;
+
   @CheckForNull public List<LockStepResource> extra = null;
 
   // it should be LockStep() - without params. But keeping this for backward compatibility
@@ -46,6 +50,16 @@ public class LockStep extends Step implements Serializable {
     if (resource != null && !resource.isEmpty()) {
       this.resource = resource;
     }
+  }
+
+  @DataBoundSetter
+  public void setUnlockOnException(boolean unlockOnException) {
+    this.unlockOnException = unlockOnException;
+  }
+
+  @DataBoundSetter
+  public void setKeepLockExceptionFails(boolean keepLockExceptionFails) {
+    this.keepLockExceptionFails = keepLockExceptionFails;
   }
 
   @DataBoundSetter
